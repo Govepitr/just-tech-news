@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { User, Post, Vote } = require('../../models');
+const { User, Post, Vote, Comment } = require('../../models');
 
 // get all users
 router.get('/', (req, res) => {
@@ -19,11 +19,18 @@ router.get('/:id', (req, res) => {
     where: {
       id: req.params.id
     },
-    // replace the existing `include` with this
     include: [
       {
         model: Post,
         attributes: ['id', 'title', 'post_url', 'created_at']
+      },
+      {
+        model: Comment,
+        attributes: ['id', 'comment_text', 'created_at'],
+        include: {
+          model: Post,
+          attributes: ['title']
+        }
       },
       {
         model: Post,
@@ -68,18 +75,18 @@ router.post('/login', (req, res) => {
     }
   }).then(dbUserData => {
     if (!dbUserData) {
-      res.status(400).json({ message: 'Nobody exists here with that email address!' });
+      res.status(400).json({ message: 'No user with that email address!' });
       return;
     }
 
     const validPassword = dbUserData.checkPassword(req.body.password);
 
     if (!validPassword) {
-      res.status(400).json({ message: 'Uh-uh-uh, you did not say the magic word!!' });
+      res.status(400).json({ message: 'Incorrect password!' });
       return;
     }
 
-    res.json({ user: dbUserData, message: 'Welcome, touch nothing but the lamp.' });
+    res.json({ user: dbUserData, message: 'You are now logged in!' });
   });
 });
 
