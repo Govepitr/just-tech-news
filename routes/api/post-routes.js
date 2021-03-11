@@ -1,12 +1,11 @@
 const router = require('express').Router();
-const { Post, User } = require('../../models');
+const { Post, User, Vote } = require('../../models');
 
 // get all users
 router.get('/', (req, res) => {
-  console.log('======================');
   Post.findAll({
     attributes: ['id', 'post_url', 'title', 'created_at'],
-    order: [['created_at', 'DESC']], 
+    order: [['created_at', 'DESC']],
     include: [
       {
         model: User,
@@ -14,7 +13,7 @@ router.get('/', (req, res) => {
       }
     ]
   })
-  .then(dbPostData => res.json(dbPostData))
+    .then(dbPostData => res.json(dbPostData))
     .catch(err => {
       console.log(err);
       res.status(500).json(err);
@@ -36,7 +35,7 @@ router.get('/:id', (req, res) => {
   })
     .then(dbPostData => {
       if (!dbPostData) {
-        res.status(404).json({ message: 'Did we find your result? Narp!' });
+        res.status(404).json({ message: 'No post found with this id' });
         return;
       }
       res.json(dbPostData);
@@ -61,6 +60,39 @@ router.post('/', (req, res) => {
     });
 });
 
+// PUT /api/posts/upvote
+router.put('/upvote', (req, res) => { 
+  // create the vote
+  Vote.create({
+    user_id: req.body.user_id,
+    post_id: req.body.post_id
+  }).then(() => {
+    // then find the post we just voted on
+    return Post.findOne({
+      where: {
+        id: req.body.post_id
+      },
+      attributes: [
+        'id',
+        'post_url',
+        'title',
+        'created_at',
+        // use raw MySQL aggregate function query to get a count of how many votes the post has and return it under the name `vote_count`
+        [
+          sequelize.literal('(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)'),
+          'vote_count'
+        ]
+      ]
+    })
+    .then(dbPostData => res.json(dbPostData))
+    .catch(err => {
+      console.log(err);
+      res.status(400).json(err);
+    });
+  }); 
+    
+});
+
 router.put('/:id', (req, res) => {
   Post.update(
     {
@@ -74,7 +106,7 @@ router.put('/:id', (req, res) => {
   )
     .then(dbPostData => {
       if (!dbPostData) {
-        res.status(404).json({ message: 'UGH! There are no posts with that id.' });
+        res.status(404).json({ message: 'No post found with this id' });
         return;
       }
       res.json(dbPostData);
@@ -93,7 +125,7 @@ router.delete('/:id', (req, res) => {
   })
     .then(dbPostData => {
       if (!dbPostData) {
-        res.status(404).json({ message: 'We cannot destroy what does not exist.' });
+        res.status(404).json({ message: 'No post found with this id' });
         return;
       }
       res.json(dbPostData);
